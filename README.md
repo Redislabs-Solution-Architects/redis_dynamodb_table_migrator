@@ -2,6 +2,14 @@
 
 A utility to migrate data from a DynamoDB table to Redis in JSON format. This tool supports complex DynamoDB items, including nested maps, lists, and sets, making it easy to migrate data with minimal effort.
 
+## 🚧 Status Panel
+
+| **Status**         | **Reason**                                      | **Details**                                                              |
+|---------------------|------------------------------------------------|---------------------------------------------------------------------------|
+| 🛠 **Work in Progress** | Testing corner cases and weird DynamoDB nested structures | Ensuring all edge cases and complex data types are migrated successfully. |
+
+
+
 ## Features
 - Handles DynamoDB's diverse data types (including nested structures).
 - Converts DynamoDB items into Redis JSON objects.
@@ -45,6 +53,15 @@ docker run --rm gacerioni/redis_dynamodb_table_migrator:0.0.1 \
 ```
 
 ## Environment Variables
+
+| Variable              | Description                          | Default      |
+|------------------------|--------------------------------------|--------------|
+| `DYNAMO_TABLE_NAME`    | Name of the DynamoDB table.          | **Required** |
+| `REDIS_HOST`           | Redis host address.                  | `localhost`  |
+| `REDIS_PORT`           | Redis port number.                   | `6379`       |
+| `AWS_REGION`           | AWS region of the DynamoDB table.    | `us-east-1`  |
+| `AWS_ACCESS_KEY_ID`    | AWS access key ID.                   | `None`       |
+| `AWS_SECRET_ACCESS_KEY`| AWS secret access key.               | `None`       |
 
 
 ### Notes
