@@ -36,6 +36,7 @@ sample_data = {
         ["QmluYXJ5MQ==", "QmluYXJ5Mg=="],  # Base64 for "Binary1" and "Binary2"
         ["QmluYXJ5Mw=="]  # Base64 for "Binary3"
     ],
+    "nullable_field": [True, False],  # Controls whether to include NULL type
 }
 
 # Generate deterministic and diverse items
@@ -61,8 +62,13 @@ def generate_items(partition_keys, sort_keys):
             "complex_list": {"L": sample_data["complex_list"][counter % len(sample_data["complex_list"])]},
             "binary_data": {"B": sample_data["binary_data"][counter % len(sample_data["binary_data"])]},
             "nested_list": {"L": sample_data["nested_list"][counter % len(sample_data["nested_list"])]},
-            "binary_set": {"BS": sample_data["binary_set"][counter % len(sample_data["binary_set"])]}
+            "binary_set": {"BS": sample_data["binary_set"][counter % len(sample_data["binary_set"])]},
         }
+
+        # Add NULL type for some items (tests NULL handling)
+        if sample_data["nullable_field"][counter % len(sample_data["nullable_field"])]:
+            item["optional_null_field"] = {"NULL": True}
+
         items.append(item)
         counter += 1
     return items

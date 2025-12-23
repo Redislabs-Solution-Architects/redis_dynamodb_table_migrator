@@ -40,6 +40,7 @@ docker buildx build --platform linux/amd64,linux/arm64 -f Dockerfile -t gacerion
 
 Use Redis URI for authenticated connections to Redis Cloud, Redis Enterprise, or any Redis instance with authentication:
 
+**With explicit AWS credentials:**
 ```bash
 docker run --rm \
   -e DYNAMO_TABLE_NAME=gabs-migrator-table \
@@ -47,6 +48,16 @@ docker run --rm \
   -e AWS_REGION=us-east-1 \
   -e AWS_ACCESS_KEY_ID="YOUR_AWS_ACCESS_KEY_ID" \
   -e AWS_SECRET_ACCESS_KEY="YOUR_AWS_SECRET_ACCESS_KEY" \
+  gacerioni/redis_dynamodb_table_migrator:1.0.0
+```
+
+**Using local AWS credentials (recommended):**
+```bash
+# AWS credentials automatically loaded from ~/.aws/credentials
+docker run --rm \
+  -v ~/.aws:/root/.aws:ro \
+  -e DYNAMO_TABLE_NAME=gabs-migrator-table \
+  -e REDIS_URI="redis://default:your-password@your-redis-host:6379" \
   gacerioni/redis_dynamodb_table_migrator:1.0.0
 ```
 
@@ -61,6 +72,17 @@ docker run --rm \
 
 For backward compatibility, you can still use individual host/port parameters:
 
+**With local AWS credentials (recommended):**
+```bash
+docker run --rm \
+  -v ~/.aws:/root/.aws:ro \
+  -e DYNAMO_TABLE_NAME=gabs-migrator-table \
+  -e REDIS_HOST=host.docker.internal \
+  -e REDIS_PORT=6379 \
+  gacerioni/redis_dynamodb_table_migrator:1.0.0
+```
+
+**With explicit AWS credentials:**
 ```bash
 docker run --rm \
   -e DYNAMO_TABLE_NAME=gabs-migrator-table \
@@ -103,18 +125,18 @@ docker run --rm gacerioni/redis_dynamodb_table_migrator:1.0.0 \
 
 ## Environment Variables
 
-| Variable              | Description                          | Default      | Priority |
-|------------------------|--------------------------------------|--------------|----------|
-| `DYNAMO_TABLE_NAME`    | Name of the DynamoDB table.          | **Required** | - |
-| `REDIS_URI`            | Redis connection URI (recommended).  | `None`       | **High** (takes precedence) |
-| `REDIS_HOST`           | Redis host address.                  | `localhost`  | Low (used if REDIS_URI not set) |
-| `REDIS_PORT`           | Redis port number.                   | `6379`       | Low (used if REDIS_URI not set) |
-| `REDIS_DB`             | Redis database number.               | `0`          | Low (used if REDIS_URI not set) |
-| `REDIS_PASSWORD`       | Redis password.                      | `None`       | Low (used if REDIS_URI not set) |
-| `AWS_REGION`           | AWS region of the DynamoDB table.    | `None`       | - |
-| `AWS_ACCESS_KEY_ID`    | AWS access key ID.                   | `None`       | - |
-| `AWS_SECRET_ACCESS_KEY`| AWS secret access key.               | `None`       | - |
-| `BATCH_SIZE`           | Number of items to process per batch.| `100`        | - |
+| Variable              | Description                          | Default      | Priority | Required |
+|------------------------|--------------------------------------|--------------|----------|----------|
+| `DYNAMO_TABLE_NAME`    | Name of the DynamoDB table.          | `None`       | - | **Yes** |
+| `REDIS_URI`            | Redis connection URI (recommended).  | `None`       | **High** (takes precedence) | No |
+| `REDIS_HOST`           | Redis host address.                  | `localhost`  | Low (used if REDIS_URI not set) | No |
+| `REDIS_PORT`           | Redis port number.                   | `6379`       | Low (used if REDIS_URI not set) | No |
+| `REDIS_DB`             | Redis database number.               | `0`          | Low (used if REDIS_URI not set) | No |
+| `REDIS_PASSWORD`       | Redis password.                      | `None`       | Low (used if REDIS_URI not set) | No |
+| `AWS_REGION`           | AWS region of the DynamoDB table.    | `None` (auto-detected) | - | No |
+| `AWS_ACCESS_KEY_ID`    | AWS access key ID.                   | `None` (uses `~/.aws/credentials`) | - | No |
+| `AWS_SECRET_ACCESS_KEY`| AWS secret access key.               | `None` (uses `~/.aws/credentials`) | - | No |
+| `BATCH_SIZE`           | Number of items to process per batch.| `100`        | - | No |
 
 ## CLI Arguments
 
@@ -151,10 +173,23 @@ The migrator handles all DynamoDB data types and converts them to Redis JSON-com
 | Binary Set (BS)| array          | Converted to array of strings |
 
 ### Notes
+
+#### AWS Credentials (Automatic Fallback)
+The migrator uses the standard AWS credential chain in this order:
+1. **Environment variables**: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
+2. **AWS credentials file**: `~/.aws/credentials` (recommended for local development)
+3. **AWS config file**: `~/.aws/config`
+4. **IAM roles**: Automatically used when running on EC2, ECS, or Lambda
+
+**Recommendation**: Use `~/.aws/credentials` for local development and IAM roles for production deployments. Only use environment variables when necessary.
+
+#### Redis Connection
 - **Redis URI takes precedence**: If `REDIS_URI` is set, individual host/port/password parameters are ignored
 - **Redis Cloud**: Use the connection string provided by Redis Cloud (format: `redis://default:password@host:port`)
 - **Docker Desktop**: For local Redis, use `host.docker.internal` as the host or `redis://host.docker.internal:6379`
-- **DynamoDB Permissions**: Ensure your AWS credentials have read access to the DynamoDB table
+
+#### Other
+- **DynamoDB Permissions**: Ensure your AWS credentials have `dynamodb:Scan` and `dynamodb:DescribeTable` permissions
 - **Depth Protection**: Nested structures are processed up to 128 levels deep to prevent infinite recursion
 
 ### Example Data
