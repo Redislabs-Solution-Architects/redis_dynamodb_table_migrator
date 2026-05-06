@@ -33,12 +33,19 @@ This migrator is production-ready with:
 
 ## Quickstart
 
-### 1. Build the Docker Image
-Build the Docker image locally (if you don't already have it):
+### 1. Pull the Docker Image
+
+The latest image is published on Docker Hub for `linux/amd64` and `linux/arm64` (Apple Silicon / AWS Graviton):
 
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64 -f Dockerfile -t gacerioni/redis_dynamodb_table_migrator:1.0.0 --push .
+docker pull gacerioni/redis_dynamodb_table_migrator:1.2.0
 ```
+
+> **Want to build from source instead?**
+> ```bash
+> docker buildx build --platform linux/amd64,linux/arm64 -f Dockerfile \
+>   -t gacerioni/redis_dynamodb_table_migrator:1.2.0 --push .
+> ```
 
 ### 2. Run the Migrator
 
@@ -54,7 +61,7 @@ docker run --rm \
   -e AWS_REGION=us-east-1 \
   -e AWS_ACCESS_KEY_ID="YOUR_AWS_ACCESS_KEY_ID" \
   -e AWS_SECRET_ACCESS_KEY="YOUR_AWS_SECRET_ACCESS_KEY" \
-  gacerioni/redis_dynamodb_table_migrator:1.0.0
+  gacerioni/redis_dynamodb_table_migrator:1.2.0
 ```
 
 **Using local AWS credentials (recommended):**
@@ -64,7 +71,7 @@ docker run --rm \
   -v ~/.aws:/root/.aws:ro \
   -e DYNAMO_TABLE_NAME=gabs-migrator-table \
   -e REDIS_URI="redis://default:your-password@your-redis-host:6379" \
-  gacerioni/redis_dynamodb_table_migrator:1.0.0
+  gacerioni/redis_dynamodb_table_migrator:1.2.0
 ```
 
 **Redis URI Format Examples:**
@@ -85,7 +92,7 @@ docker run --rm \
   -e DYNAMO_TABLE_NAME=gabs-migrator-table \
   -e REDIS_HOST=host.docker.internal \
   -e REDIS_PORT=6379 \
-  gacerioni/redis_dynamodb_table_migrator:1.0.0
+  gacerioni/redis_dynamodb_table_migrator:1.2.0
 ```
 
 **With explicit AWS credentials:**
@@ -97,7 +104,7 @@ docker run --rm \
   -e AWS_REGION=us-east-1 \
   -e AWS_ACCESS_KEY_ID="YOUR_AWS_ACCESS_KEY_ID" \
   -e AWS_SECRET_ACCESS_KEY="YOUR_AWS_SECRET_ACCESS_KEY" \
-  gacerioni/redis_dynamodb_table_migrator:1.0.0
+  gacerioni/redis_dynamodb_table_migrator:1.2.0
 ```
 
 ### 3. CLI Options
@@ -106,7 +113,7 @@ You can also use CLI arguments if you prefer not to use environment variables:
 
 **Using Redis URI:**
 ```bash
-docker run --rm gacerioni/redis_dynamodb_table_migrator:1.0.0 \
+docker run --rm gacerioni/redis_dynamodb_table_migrator:1.2.0 \
   --dynamo-table gabs-migrator-table \
   --redis-uri "redis://default:password@host:6379" \
   --region us-east-1
@@ -114,7 +121,7 @@ docker run --rm gacerioni/redis_dynamodb_table_migrator:1.0.0 \
 
 **Using Host/Port:**
 ```bash
-docker run --rm gacerioni/redis_dynamodb_table_migrator:1.0.0 \
+docker run --rm gacerioni/redis_dynamodb_table_migrator:1.2.0 \
   --dynamo-table gabs-migrator-table \
   --redis-host host.docker.internal \
   --redis-port 6379 \
@@ -123,7 +130,7 @@ docker run --rm gacerioni/redis_dynamodb_table_migrator:1.0.0 \
 
 **Dry Run Mode:**
 ```bash
-docker run --rm gacerioni/redis_dynamodb_table_migrator:1.0.0 \
+docker run --rm gacerioni/redis_dynamodb_table_migrator:1.2.0 \
   --dynamo-table gabs-migrator-table \
   --redis-uri "redis://localhost:6379" \
   --dry-run
