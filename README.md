@@ -2,24 +2,30 @@
 
 A production-ready utility to migrate data from a DynamoDB table to Redis in JSON format. This tool supports complex DynamoDB items, including nested maps, lists, and sets, with reliable type conversion and Redis Cloud compatibility.
 
-## ✅ Status: v1.0 Ready
+## ✅ Status: v1.2 Ready
 
 This migrator is production-ready with:
 - ✅ Reliable DynamoDB to Redis JSON conversion
 - ✅ Comprehensive data type handling (Decimal, Binary, Sets, Lists, Maps, etc.)
 - ✅ Redis Cloud support with URI-based authentication
 - ✅ Recursive type conversion with depth protection
-- ✅ Datetime parsing and JSON unwrapping
-- ✅ Pagination support for large tables
+- ✅ Datetime parsing and JSON unwrapping (all ISO 8601 variants, including milliseconds)
+- ✅ Pagination support for large tables with safe retry exhaustion handling
+- ✅ Pipelined Redis writes for high-throughput migrations
+- ✅ Consistent reads from DynamoDB (`ConsistentRead=True`) for accurate snapshots
+- ✅ Safe validation via `SCAN` (no blocking `KEYS *`)
 
 ## Features
 - **Complete DynamoDB Type Support**: Handles all DynamoDB data types including Decimal, Binary, Sets (SS, NS, BS), Lists, Maps, and nested structures
 - **Intelligent Type Conversion**: Automatically converts DynamoDB types to Redis JSON-compatible formats
 - **Redis Cloud Compatible**: Supports Redis URI for authenticated connections (Redis Cloud, Redis Enterprise, etc.)
 - **Recursive Processing**: Safely handles deeply nested structures with configurable depth limits
-- **Datetime Parsing**: Automatically detects and converts ISO datetime strings to Unix timestamps
+- **Datetime Parsing**: Detects and converts all ISO 8601 variants to Unix timestamps (with/without milliseconds, `T`/space separator, `Z` suffix)
 - **JSON Unwrapping**: Intelligently parses stringified JSON fields
-- **Pagination Support**: Efficiently processes large DynamoDB tables with automatic pagination
+- **Pipelined Writes**: Batches Redis writes per DynamoDB page for significantly higher throughput
+- **Consistent Reads**: Uses `ConsistentRead=True` on DynamoDB scans for accurate point-in-time snapshots
+- **Pagination Support**: Efficiently processes large DynamoDB tables with automatic pagination and safe retry exhaustion (no infinite loops)
+- **Safe Validation**: Post-migration key count uses `SCAN` instead of the blocking `KEYS` command
 - **Dry Run Mode**: Test migrations without writing to Redis
 - **Flexible Configuration**: Use environment variables or CLI arguments
 
@@ -200,7 +206,7 @@ If you’d like to test with example data, you can use the provided script to po
 python utils/add_items_to_dynamodb_table.py
 ```
 
-This script generates a diverse dataset to test the migrator.
+This script generates a diverse dataset (250 standard items + 10 edge-case items) to stress-test the migrator across all DynamoDB type combinations, including: ISO datetimes, stringified JSON, floats, empty collections, Unicode/emoji, NULL, non-UTF-8 binary, deeply nested maps, mixed-type lists, and large sets.
 
 
 ## License

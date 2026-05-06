@@ -28,10 +28,12 @@ def try_parse_datetime(value: str) -> int | str:
         return value
 
     formats = [
-        "%Y-%m-%dT%H:%M:%SZ",
-        "%Y-%m-%d %H:%M:%S.%f",
-        "%Y-%m-%d %H:%M:%S",
-        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%fZ",   # ISO 8601 with milliseconds + Z
+        "%Y-%m-%dT%H:%M:%SZ",      # ISO 8601 with Z, no milliseconds
+        "%Y-%m-%dT%H:%M:%S.%f",    # ISO 8601 with milliseconds, no Z
+        "%Y-%m-%dT%H:%M:%S",       # ISO 8601 no milliseconds, no Z
+        "%Y-%m-%d %H:%M:%S.%f",    # space separator with milliseconds
+        "%Y-%m-%d %H:%M:%S",       # space separator no milliseconds
     ]
     for fmt in formats:
         try:
@@ -239,7 +241,7 @@ def migrate_table_to_redis(table, redis_client, batch_size=100, dry_run=False, p
         logger.info("Starting migration from DynamoDB to Redis...")
         total_migrated = 0
         retries = 0
-        response = table.scan(Limit=batch_size)
+        response = table.scan(Limit=batch_size, ConsistentRead=True)
 
         while True:
             items = response.get("Items", [])
@@ -247,6 +249,7 @@ def migrate_table_to_redis(table, redis_client, batch_size=100, dry_run=False, p
             if not items:
                 logger.info("No items found in the current page.")
 
+            page_writes = []
             for item in items:
                 try:
                     partition_key = item.get(table.key_schema[0]["AttributeName"])
@@ -268,14 +271,20 @@ def migrate_table_to_redis(table, redis_client, batch_size=100, dry_run=False, p
 
                     if dry_run:
                         logger.info("[DRY-RUN] Would write to Redis key: %s", redis_key)
-                        logger.info("[DRY-RUN] JSON Data: %s", json.dumps(json_item))
+                        logger.debug("[DRY-RUN] JSON Data: %s", json.dumps(json_item))
                     else:
-                        redis_client.json().set(redis_key, "$", json_item)
-                        logger.info("Stored JSON in Redis key: %s", redis_key)
+                        page_writes.append((redis_key, json_item))
 
                     total_migrated += 1
                 except Exception as e:
                     logger.error("Error processing item: %s", e)
+
+            if page_writes:
+                pipe = redis_client.pipeline()
+                for redis_key, json_item in page_writes:
+                    pipe.json().set(redis_key, "$", json_item)
+                pipe.execute()
+                logger.info("Wrote %d items to Redis via pipeline.", len(page_writes))
 
             logger.info("Processed %d items so far...", total_migrated)
 
@@ -288,7 +297,11 @@ def migrate_table_to_redis(table, redis_client, batch_size=100, dry_run=False, p
 
             while retries < 5:
                 try:
-                    response = table.scan(Limit=batch_size, ExclusiveStartKey=last_evaluated_key)
+                    response = table.scan(
+                        Limit=batch_size,
+                        ExclusiveStartKey=last_evaluated_key,
+                        ConsistentRead=True,
+                    )
                     retries = 0
                     break
                 except Exception as e:
@@ -296,6 +309,10 @@ def migrate_table_to_redis(table, redis_client, batch_size=100, dry_run=False, p
                     wait_time = 2 ** retries
                     logger.warning("Retrying in %d seconds due to: %s", wait_time, str(e))
                     time.sleep(wait_time)
+            else:
+                raise RuntimeError(
+                    f"Pagination failed after 5 retries. Last key: {last_evaluated_key}"
+                )
 
         logger.info("Migration completed: %d items migrated to Redis.", total_migrated)
         return total_migrated
@@ -307,7 +324,13 @@ def migrate_table_to_redis(table, redis_client, batch_size=100, dry_run=False, p
 def validate_migration(processed_count, redis_client, table_name):
     try:
         redis_key_pattern = f"{table_name}:*"
-        redis_count = len(redis_client.keys(redis_key_pattern))
+        redis_count = 0
+        cursor = 0
+        while True:
+            cursor, keys = redis_client.scan(cursor, match=redis_key_pattern, count=1000)
+            redis_count += len(keys)
+            if cursor == 0:
+                break
 
         if processed_count == redis_count:
             logger.info("Validation successful: All items migrated (Processed=%d, Redis=%d).", processed_count, redis_count)
